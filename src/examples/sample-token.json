@@ -1,0 +1,63 @@
+{
+  "tokenName": "ALPHA",
+  "totalSupply": 1000000000,
+  "tgeDate": "2025-03-01",
+  "allocations": [
+    {
+      "name": "Public Sale",
+      "percent": 12,
+      "cliffMonths": 0,
+      "vestingMonths": 6,
+      "tgePercent": 25,
+      "type": "linear"
+    },
+    {
+      "name": "Private Sale",
+      "percent": 15,
+      "cliffMonths": 1,
+      "vestingMonths": 12,
+      "tgePercent": 10,
+      "type": "linear"
+    },
+    {
+      "name": "Team",
+      "percent": 18,
+      "cliffMonths": 12,
+      "vestingMonths": 24,
+      "tgePercent": 0,
+      "type": "linear"
+    },
+    {
+      "name": "Advisors",
+      "percent": 5,
+      "cliffMonths": 6,
+      "vestingMonths": 18,
+      "tgePercent": 0,
+      "type": "linear"
+    },
+    {
+      "name": "Ecosystem Fund",
+      "percent": 25,
+      "cliffMonths": 0,
+      "vestingMonths": 36,
+      "tgePercent": 5,
+      "type": "linear"
+    },
+    {
+      "name": "Liquidity",
+      "percent": 10,
+      "cliffMonths": 0,
+      "vestingMonths": 0,
+      "tgePercent": 100,
+      "type": "cliff"
+    },
+    {
+      "name": "Community Rewards",
+      "percent": 15,
+      "cliffMonths": 0,
+      "vestingMonths": 48,
+      "tgePercent": 0,
+      "type": "linear"
+    }
+  ]
+}

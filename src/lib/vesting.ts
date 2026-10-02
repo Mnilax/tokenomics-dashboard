@@ -5,7 +5,7 @@
  * Output: monthly timeline of unlocks and circulating supply
  */
 
-import { Allocation, MonthlyUnlock, TokenConfig } from './schema';
+import { Allocation, MonthlyUnlock, TokenConfig, validateConfig } from './schema';
 
 /**
  * Calculate tokens unlocked for a single allocation at a given month.
@@ -15,6 +15,7 @@ export function calcAllocationUnlock(
   totalSupply: number,
   month: number,
 ): number {
+  if (!Number.isInteger(month) || month < 0) return 0;
   const totalTokens = (alloc.percent / 100) * totalSupply;
   const tgeTokens = (alloc.tgePercent / 100) * totalTokens;
   const vestableTokens = totalTokens - tgeTokens;
@@ -70,31 +71,42 @@ export function calcCumulativeUnlock(
   totalSupply: number,
   upToMonth: number,
 ): number {
-  let total = 0;
-  for (let m = 0; m <= upToMonth; m++) {
-    total += calcAllocationUnlock(alloc, totalSupply, m);
-  }
-  return total;
+  if (!Number.isInteger(upToMonth) || upToMonth < 0) return 0;
+  const total = (alloc.percent / 100) * totalSupply;
+  const tge = (alloc.tgePercent / 100) * total;
+  const elapsed = Math.max(0, upToMonth - alloc.cliffMonths);
+  if (alloc.type === 'cliff' || alloc.vestingMonths === 0) return elapsed >= 1 ? total : tge;
+  return tge + (total - tge) * Math.min(elapsed / alloc.vestingMonths, 1);
 }
 
 /**
  * Generate the full monthly timeline.
  */
 export function generateTimeline(config: TokenConfig): MonthlyUnlock[] {
+  const errors = validateConfig(config);
+  if (errors.length) throw new Error(errors.join('\n'));
   // Find the latest month any allocation finishes
   const maxMonth = config.allocations.reduce((max, a) => {
-    return Math.max(max, a.cliffMonths + a.vestingMonths + 1);
-  }, 1);
+    if (a.percent === 0 || a.tgePercent === 100) return max;
+    const duration = a.type === 'cliff' ? 1 : Math.max(a.vestingMonths, 1);
+    return Math.max(max, a.cliffMonths + duration);
+  }, 0);
 
   const timeline: MonthlyUnlock[] = [];
-  const tgeDate = new Date(config.tgeDate);
+  const tgeDate = new Date(`${config.tgeDate}T00:00:00.000Z`);
 
   for (let month = 0; month <= maxMonth; month++) {
+    // Keep the original day where possible, clamping month ends in UTC.
     const date = new Date(tgeDate);
-    date.setMonth(date.getMonth() + month);
+    date.setUTCDate(1);
+    date.setUTCMonth(date.getUTCMonth() + month);
+    const nextMonth = new Date(date);
+    nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+    nextMonth.setUTCDate(0);
+    date.setUTCDate(Math.min(tgeDate.getUTCDate(), nextMonth.getUTCDate()));
 
-    const unlocks: Record<string, number> = {};
-    const cumulative: Record<string, number> = {};
+    const unlocks: Record<string, number> = Object.create(null);
+    const cumulative: Record<string, number> = Object.create(null);
     let totalUnlocked = 0;
 
     for (const alloc of config.allocations) {

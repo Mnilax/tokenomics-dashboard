@@ -23,16 +23,11 @@ export function SupplyChart({ timeline, config }: Props) {
   const markers = findLargeUnlocks(timeline, 0.03, config.totalSupply);
 
   const data = timeline.map((entry) => {
-    const row: Record<string, number | string> = {
+    return {
       month: `M${entry.month}`,
       date: entry.date,
+      cumulative: entry.cumulative,
     };
-    for (const name of allocNames) {
-      row[name] = entry.cumulative[name] || 0;
-    }
-    row.total = entry.totalUnlocked;
-    row.percent = entry.circulatingPercent;
-    return row;
   });
 
   const fmt = (n: number) => {
@@ -60,7 +55,8 @@ export function SupplyChart({ timeline, config }: Props) {
           <Area
             key={name}
             type="monotone"
-            dataKey={name}
+            dataKey={(row: { cumulative: Record<string, number> }) => row.cumulative[name] || 0}
+            name={name}
             stackId="1"
             fill={COLORS[idx % COLORS.length]}
             stroke={COLORS[idx % COLORS.length]}

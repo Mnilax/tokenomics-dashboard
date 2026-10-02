@@ -67,6 +67,26 @@ describe('calcCumulativeUnlock', () => {
 });
 
 describe('generateTimeline', () => {
+  it('clamps month-end dates and keeps the original day on later months', () => {
+    const timeline = generateTimeline({
+      tokenName: 'TEST', totalSupply: TOTAL, tgeDate: '2024-01-31',
+      allocations: [{ name: 'A', percent: 100, cliffMonths: 0, vestingMonths: 3, tgePercent: 0, type: 'linear' }],
+    });
+    expect(timeline.map(row => row.date)).toEqual(['2024-01-31', '2024-02-29', '2024-03-31', '2024-04-30']);
+  });
+
+  it('preserves prototype-like allocation names as ordinary data', () => {
+    const timeline = generateTimeline({
+      tokenName: 'TEST', totalSupply: TOTAL, tgeDate: '2025-01-01',
+      allocations: [{ name: '__proto__', percent: 100, cliffMonths: 0, vestingMonths: 0, tgePercent: 100, type: 'cliff' }],
+    });
+    expect(timeline.length).toBe(1);
+    expect(timeline[0].unlocks['__proto__']).toBe(TOTAL);
+  });
+
+  it('rejects invalid schedules before building a timeline', () => {
+    expect(() => generateTimeline({ tokenName: 'BAD', totalSupply: TOTAL, tgeDate: 'invalid', allocations: [] })).toThrow();
+  });
   it('produces correct length', () => {
     const config: TokenConfig = {
       tokenName: 'TEST', totalSupply: TOTAL, tgeDate: '2025-01-01',
@@ -76,8 +96,8 @@ describe('generateTimeline', () => {
       ],
     };
     const timeline = generateTimeline(config);
-    // Max = 6 + 12 + 1 = 19, so 0..19 = 20 entries
-    expect(timeline.length).toBe(20);
+    // Last unlock is at 6 + 12 = 18, so 0..18 = 19 entries.
+    expect(timeline.length).toBe(19);
     expect(timeline[0].month).toBe(0);
   });
 
@@ -92,4 +112,21 @@ describe('generateTimeline', () => {
     const last = timeline[timeline.length - 1];
     expect(last.circulatingPercent).toBeCloseTo(100, 1);
   });
+});
+
+describe('supply conservation across schedule types', () => {
+  for (const type of ['linear', 'monthly', 'cliff'] as const) {
+    for (const duration of [0, 1, 12]) {
+      it(`${type}, duration ${duration}: monthly and cumulative totals agree`, () => {
+        const alloc: Allocation = { name: 'A', percent: 100, cliffMonths: 3, vestingMonths: duration, tgePercent: 20, type };
+        let sum = 0;
+        for (let month = 0; month <= 18; month++) {
+          sum += calcAllocationUnlock(alloc, TOTAL, month);
+          expect(calcCumulativeUnlock(alloc, TOTAL, month)).toBeCloseTo(sum, 4);
+          expect(sum).toBeLessThanOrEqual(TOTAL + 0.0001);
+        }
+        expect(sum).toBeCloseTo(TOTAL, 4);
+      });
+    }
+  }
 });

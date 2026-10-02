@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Allocation, TokenConfig, VestingType, createDefaultAllocation } from '../lib/schema';
+import { Allocation, TokenConfig, VestingType, createDefaultAllocation, parseConfigJSON } from '../lib/schema';
 
 interface Props {
   config: TokenConfig;
@@ -41,13 +41,15 @@ export function AllocationForm({ config, onChange }: Props) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data = JSON.parse(ev.target?.result as string);
+        const data = parseConfigJSON(ev.target?.result as string);
         onChange(data);
-      } catch {
-        alert('Invalid JSON file');
+      } catch (error) {
+        alert(`Invalid configuration: ${error instanceof Error ? error.message : 'Could not read JSON file'}`);
       }
     };
+    reader.onerror = () => alert('Could not read configuration file');
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const exportJSON = () => {
